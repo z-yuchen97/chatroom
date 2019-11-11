@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+	  <link rel="stylesheet" type="text/css" href="client.css"/>
+	  <meta charset="UTF-8">
+	  <title>Chat Room</title>
+      <script src="/socket.io/socket.io.js"></script>
+   </head>
+   <body>
+	   <div id="loginpage">
+	   <h3 id="title">Welcome to the chat room</h3>
+	   <div id="login-wrap" class="login-wrap">
+	       <input type="text" id="nickname" placeholder="nickname" />
+	       <button id="login_btn">Log In</button>
+	   </div>
+	   </div>
+	   
+	<div id="lobby">
+	  <div id="lobbytitle"><h3>Welcome to the lobby</h3></div>
+	  <div id="currentuser"></div>
+	  <div id="available-room"></div>
+	  <div id="chatlog"></div>
+	  <div id="sendlobby">
+	  <input type="hidden" id="lobby_hidden">
+      <input type="text" id="message_input" placeholder="message"/>
+      <button id="lobbymsg_btn">send</button>
+	  </div>
+	  <div id="createlobby">
+	  <input type="text" id="newroom_input" placeholder="roomname"/>
+	  <input type="text" id="password_input" placeholder="createpassword"/>
+	  <button id="newroom_btn">create</button>
+	  </div>
+	  <div id="joinlobby">
+	  <input type="text" id="joinroom_input" placeholder="roomname"/>
+	  <input type="text" id="room_password" placeholder="password"/>
+	  <button id="joinroom_btn">join</button>
+	  </div>
+	 <div id="logout-wrap" class="logout-wrap">
+	 	Logout:&nbsp;&nbsp;<button id="logout_btn">logout</button>
+	 </div>
+	</div>
+	
+	
+	<div id="private-room">
+	  <div id="welcome-words"></div>
+	  <div id="usersinroom"></div>
+	  <div id="founderofroom"></div>
+	  <input type="hidden" id="privateroom_hidden">
+	  <input type="hidden" id="roomname_hidden">
+	  <input type="hidden" id="foundername_hidden">
+	  <div id="roomchatlog"></div>
+	  <div id="roomsend">
+	  <input type="text" id="room-message" placeholder="message"/>
+	  <button id="roommsg_btn">send</button>
+	  </div>
+	  <div id="privatemsg-wrap">
+	  <input type="text" id="private-name" placeholder="name"/>
+	  <input type="text" id="private-message" placeholder="private message"/>
+	  <button id="privatemsg_btn">send</button>
+	  </div>
+	  <div id="leave-wrap" class="leave-wrap">
+	  	Leave:&nbsp;&nbsp;<button id="leave_btn">leave</button>
+	  </div>
+	</div>
+	
+	<div id="founder-privilege">
+		<div id="invite">
+		<input type="text" id="pull-somebody" placeholder="invite sb. into the room"/>
+		<button id="pull_btn">invite</button>&nbsp;&nbsp;
+		</div>
+		<div id="ban">
+		<input type="text" id="ban-somebody" placeholder="ban somebody"/>
+		<button id="ban_btn">ban</button>
+		</div>
+		<div id="kickout">
+		<input type="text" id="kickout-somebody" placeholder="kick somebody out"/>
+		<button id="kickout_btn">kickout</button>
+		</div>
+		<div id="cancel">
+		<input type="text" id="lift-somebody" placeholder="lift/cancel the ban"/>
+		<button id="cancel_btn">cancel</button>
+		</div>
+		<input type="hidden" id="kickout_hidden">
+		<input type="hidden" id="password_hidden">
+	</div>
+	
+	<div id="founder-only-privilege">
+		<div id="author">
+		<input type="text" id="authorize" placeholder="authorize someone rights"/>
+		<button id="authorize_btn">author</button>
+		</div>
+		<div id="change">
+		<input type="text" id="change-password" placeholder="change password"/>
+		<button id="changepwd_btn">change</button>
+		</div>
+	</div>
+	<script>
+	 
+	 var socketio = io.connect();
+	 
+	 function login(){
+	 		const nickname = document.getElementById("nickname").value;
+	 			if(nickname==''){
+	 			    alert("nickname cannot be null!");
+	 			}else{
+					socketio.emit("login_server", {nickname:nickname});
+				}
+	 }
+	 
+	 function roomlistupdate(){
+		 socketio.emit("roomlist_update", {roomupdate:"yes"});
+	 }
+	 
+	 socketio.on("roomlist_update_request",function(data) {
+	 		 const roomlist= data['roomlist'];
+	 		 document.getElementById("available-room").innerHTML = "Available Rooms: "+roomlist;
+	 });
+	 
+	 socketio.on("message_to_login",function(data) {
+		 const nickname= data['nickname'];
+		 const userexist= data['userexist'];
+		 const roomlist= data['roomlist'];
+		 if(userexist==1){
+			 alert("the nickname is already exist,please change another name");
+		 }else if(userexist==0){
+			 alert("Welcome to the lobby: "+nickname+" !");
+			 document.getElementById("loginpage").style.display="none";
+			 document.getElementById("lobby").style.display="block";
+			 document.getElementById("private-room").style.display="none";
+			 document.getElementById("founder-privilege").style.display="none";
+			 document.getElementById("founder-only-privilege").style.display="none";
+			 document.getElementById("currentuser").innerHTML="Your nickname is :"+nickname;
+			 document.getElementById("lobby_hidden").value = nickname;
+			 document.getElementById("available-room").innerHTML = "Available Rooms: "+roomlist;
+		 }
+	 });
+	 
+	 function sendMessageinlobby(){
+	 	const nicknames = document.getElementById("lobby_hidden").value;
+	    const msg = document.getElementById("message_input").value;
+	    socketio.emit("lobby", {message:msg, nicknames:nicknames});
+	 }
+	 
+	 socketio.on("message_to_lobby",function(data) {
+	    //Append an HR thematic break and the escaped HTML of the new message
+	 		 let text= '<div class="lobbychat">'+data['nicknames']+':'+data['message']+'</div>'
+	         document.getElementById("chatlog").innerHTML+=text;
+	 });
+	 
+	 function newroom(){
+	 	 const roomname = document.getElementById("newroom_input").value;
+	     const password = document.getElementById("password_input").value;
+	 	 const nickname = document.getElementById("lobby_hidden").value;
+	 		 if(roomname==''){
+	 		 	alert("roomname cannot be null!");
+	 		 }else{
+				socketio.emit("information_of_room", {roomname:roomname,nickname:nickname,password:password});
+			 }
+	 }
+	 
+	    socketio.on("room_judge",function(data) {
+	    //Append an HR thematic break and the escaped HTML of the new message
+	 	     const roomlist= data['roomlist'];
+	 		 const userlist= data['userlist'];
+	 		 const roomname = data['roomname'];
+	 		 const nickname = data['nickname'];
+	 		 const exist = data['exist'];
+			 const password = data['password'];
+	 		 let usersarr=[];
+	 		 if(exist == 1){
+	 		 	alert("room has been created!");
+	 		 	exit;
+	 		 }else{
+				let foundername="";
+	 			let usersinroom=[];
+	 			for(let i=0; i < userlist.length; i++){
+	 				if(userlist[i].room==roomname){
+	 					let newusersname = userlist[i].nicknames;
+	 					usersinroom.push(newusersname);
+	 				}
+	 			}
+				for(let i=0; i < userlist.length; i++){
+					if(userlist[i].room==roomname&&userlist[i].founder=="yes"){
+						foundername = userlist[i].nicknames;
+					}
+				}
+	 			document.getElementById("private-room").style.display="block";
+	 			document.getElementById("loginpage").style.display="none";
+	 			document.getElementById("lobby").style.display="none";
+				document.getElementById("founder-privilege").style.display="block";
+				document.getElementById("founder-only-privilege").style.display="block";
+	 			document.getElementById("welcome-words").innerHTML="Welcome to the room :"+roomname;
+	 			document.getElementById("privateroom_hidden").value = nickname;
+	 			document.getElementById("roomname_hidden").value = roomname;
+				document.getElementById("foundername_hidden").value = foundername;
+				document.getElementById("password_hidden").value = password;
+	 			document.getElementById("roomchatlog").innerHTML="";
+	 			document.getElementById("usersinroom").innerHTML = "users now in room: "+usersinroom;
+				document.getElementById("founderofroom").innerHTML = "The room is created by: "+foundername;
+				roomlistupdate();
+	 		 }
+	 });
+	 
+	 function sendMessageinroom(){
+	 	 const nicknames = document.getElementById("privateroom_hidden").value;
+	     const msg = document.getElementById("room-message").value;
+	 	 const roomname = document.getElementById("roomname_hidden").value;
+	     socketio.emit("message_to_room", {message:msg, nicknames:nicknames, roomname:roomname});
+	 }
+	 
+	 socketio.on("feedback_to_room",function(data) {
+	    //Append an HR thematic break and the escaped HTML of the new message
+	 	 let text= '<div class="roomchat">'+data['nicknames']+':'+data['message']+'</div>'
+	     document.getElementById("roomchatlog").innerHTML+=text;
+	 });
+	 
+	 function joinroomupdate(roomname,nickname){
+	 	 socketio.emit("update_joinroom", {roomname:roomname,nickname:nickname});
+	 }
+	 
+	 socketio.on("update_to_room",function(data) {
+	 		 const roomname = data['roomname'];
+	 		 const nickname = data['nickname'];
+	 		 const userlist = data['userlist'];
+			 let foundername = "";
+	 		 let usersinroom=[];
+	 		 for(let i=0; i < userlist.length; i++){
+	 		 	if(userlist[i].room==roomname){
+	 		 		let newusersname = userlist[i].nicknames;
+	 		 		usersinroom.push(newusersname);
+	 		 	}
+	 		 }
+			 for(let i=0; i < userlist.length; i++){
+			 	if(userlist[i].room==roomname&&userlist[i].founder=="yes"){
+			 		foundername = userlist[i].nicknames;
+			 	}
+			 }
+		 document.getElementById("foundername_hidden").value = foundername;
+	 	 document.getElementById("usersinroom").innerHTML = "users now in room: "+usersinroom;
+		 document.getElementById("founderofroom").innerHTML = "The room is created by: "+foundername;
+	 });
+	 
+	 function leave(){
+	 				   const nicknames = document.getElementById("privateroom_hidden").value;
+	 				   const roomname = document.getElementById("roomname_hidden").value;
+					   const foundername = document.getElementById("foundername_hidden").value;
+	 				   socketio.emit("leave_from_room", {nicknames:nicknames,roomname:roomname,foundername:foundername});
+	 		}
+	 			
+	 function leaveupdate(roomname,nickname){
+	  		  socketio.emit("leave_update", {nickname:nickname,roomname:roomname});
+	 }
+			
+	 socketio.on("dismiss_room",function(data) {
+	 	    const roomname = data['roomname'];
+	 	    const foundername = data['foundername'];
+		    dismissroom(roomname,foundername);
+	 });
+				
+	 function dismissroom(roomname,foundername){
+			socketio.emit("dismiss_message", {roomname:roomname,foundername:foundername});
+	 }
+		
+		        socketio.on("dismiss_judge",function(data) {
+		           const roomname = data['roomname'];
+		           const foundername = data['foundername'];
+				   document.getElementById("loginpage").style.display="none";
+				   document.getElementById("lobby").style.display="block";
+				   document.getElementById("private-room").style.display="none";
+				   document.getElementById("founder-privilege").style.display="none";
+				   document.getElementById("founder-only-privilege").style.display="none";
+				   document.getElementById("roomchatlog").innerHTML="";
+				   alert("Room founder "+foundername+" has leave and dismiss the room "+roomname);
+				   roomlistupdate();
+		           roomspaceupdate(roomname);
+		        });
+				
+	 			socketio.on("leave_judge",function(data) {
+	 			   const roomname = data['roomname'];
+				   const nickname = data['nicknames'];
+				   document.getElementById("loginpage").style.display="none";
+				   document.getElementById("lobby").style.display="block";
+				   document.getElementById("private-room").style.display="none";
+				   document.getElementById("founder-privilege").style.display="none";
+				   document.getElementById("founder-only-privilege").style.display="none";
+				   document.getElementById("roomchatlog").innerHTML="";
+				   leaveupdate(roomname,nickname);
+	 			   alert("You are out of room "+roomname);
+	 			});
+	 			
+	 			socketio.on("leave_to_update",function(data) {
+	 					 const roomname = data['roomname'];
+	 					 const nickname = data['nickname'];
+	 					 const userlist = data['userlist'];
+	 					 let usersinroom=[];
+	 					 for(let i=0; i < userlist.length; i++){
+	 					 	if(userlist[i].room==roomname){
+	 					 		let newusersname = userlist[i].nicknames;
+	 					 		usersinroom.push(newusersname);
+	 					 	}
+	 					 }
+	 				 document.getElementById("usersinroom").innerHTML = "users now in room: "+usersinroom;
+	 			});
+	 			
+	 function joinroom(){
+	 	 const roomname = document.getElementById("joinroom_input").value;
+	     const password = document.getElementById("room_password").value;
+	 	 const nickname = document.getElementById("lobby_hidden").value;
+	 	 if(roomname==''){
+	 		 alert("roomname cannot be null!");
+	 	 }else{
+			 socketio.emit("information_of_joinroom", {roomname:roomname,nickname:nickname,password:password});
+		 }
+	 }
+	 
+	    socketio.on("joinroom_judge",function(data) {
+	    //Append an HR thematic break and the escaped HTML of the new message
+	 		 const roomname = data['roomname'];
+	 		 const nickname = data['nickname'];
+	 		 const exist = data['exist'];
+	 		 const userlist= data['userlist'];
+	 		 if(exist == 0){
+	 		 	alert("room does not exist!");
+	 		 }else if(exist == 1){
+	 				 let usersinroom=[];
+					 let foundername = "";
+	 				 for(let i=0; i < userlist.length; i++){
+	 				 	if(userlist[i].room==roomname){
+	 				 		let newusersname = userlist[i].nicknames;
+	 				 		usersinroom.push(newusersname);
+	 				 	}
+	 				 }
+					 for(let i=0; i < userlist.length; i++){
+					 	if(userlist[i].room==roomname&&userlist[i].founder=="yes"){
+					 		foundername = userlist[i].nicknames;
+					 	}
+					 }
+	 			document.getElementById("private-room").style.display="block";
+	 			document.getElementById("loginpage").style.display="none";
+	 			document.getElementById("lobby").style.display="none";
+				document.getElementById("founder-privilege").style.display="none";
+				document.getElementById("founder-only-privilege").style.display="none";
+	 			document.getElementById("welcome-words").innerHTML="Welcome to the room :"+roomname;
+	 			document.getElementById("privateroom_hidden").value = nickname;
+	 			document.getElementById("roomname_hidden").value = roomname;
+				document.getElementById("foundername_hidden").value = foundername;
+	 			document.getElementById("roomchatlog").innerHTML="";
+	 			document.getElementById("usersinroom").innerHTML = "users now in room: "+usersinroom;
+				document.getElementById("founderofroom").innerHTML = "The room is created by: "+foundername;
+				joinroomupdate(roomname,nickname);
+	 		 }else if(exist == 2){
+	 				alert("password is wrong!");
+	 		 }else if(exist == 3){
+	 				alert("You have been banned from join this room!");
+	 		 }
+	 });
+	 
+	 function ban(){
+		 const banname = document.getElementById("ban-somebody").value;
+		 const roomname = document.getElementById("roomname_hidden").value;
+		 const nickname = document.getElementById("privateroom_hidden").value;
+		 if(banname==''){
+		 	alert("name cannot be null!");
+		 }else if(banname==nickname){
+		 	alert("you can not ban yourself!");
+		 }else{
+			socketio.emit("information_of_ban", {banname:banname,roomname:roomname,nickname:nickname});
+		 }
+	 }
+	 
+	    socketio.on("ban_alert",function(data) {
+	       const banname = data['banname'];
+		   const banpoint = data['banpoint'];
+		   if(banpoint==1){
+			   alert("user you want to ban has already join your room, please consider kick him out first.");
+		   }else if(banpoint==0){
+			   alert("You have ban the user: "+banname+" successfully!");
+		   }else if(banpoint==2){
+			   alert(banname+" has already in your banlist!");
+		   }
+	    });
+	 
+	 function logout(){
+		           const nickname = document.getElementById("lobby_hidden").value;
+	 		       document.getElementById("loginpage").style.display="block";
+	 			   document.getElementById("lobby").style.display="none";
+	 			   document.getElementById("private-room").style.display="none";
+				   document.getElementById("founder-privilege").style.display="none";
+				   document.getElementById("founder-only-privilege").style.display="none";
+	 			   document.getElementById("chatlog").innerHTML="";
+				   socketio.emit("logout_ask", {nickname:nickname});
+	 		}
+			
+			socketio.on("logout_alert",function(data) {
+			   let nickname = data['nickname'];
+			   alert("Dear "+nickname+", Thank you for your visit!");
+			});
+			
+			function kickoutfounder(){
+					       const kickname = document.getElementById("kickout-somebody").value;
+						   const nickname = document.getElementById("privateroom_hidden").value;
+						   const roomname = document.getElementById("roomname_hidden").value;
+						   if(kickname==''){
+						   	alert("name cannot be null!");
+						   }else if(kickname==nickname){
+						   	alert("Sorry, you can not kick yourself out!");
+						   }else{
+							socketio.emit("kickout_ask", {kickname:kickname,roomname:roomname,nickname:nickname}); 
+						   }
+					}
+					
+					socketio.on("kickout_alert",function(data) {
+					   const kickname = data['kickname'];
+					   const kickoutpoint = data['kickoutpoint'];
+					   if(kickoutpoint==1){
+						   alert("The user you want to kick out doesn't in the room!")
+					   }else if(kickoutpoint==0){
+						   document.getElementById("kickout_hidden").value = kickname;
+						   kickoutuser();
+						   alert(kickname+" has been kick out from the room!");
+					   }else if(kickoutpoint==2){
+						   alert("you have no rights to kickout "+kickname+" because he is one of the administrator of the room!");
+					   }
+					});
+					
+			function kickoutuser(){
+					       const kickname = document.getElementById("kickout_hidden").value;
+						   const foundername = document.getElementById("privateroom_hidden").value;
+						   const roomname = document.getElementById("roomname_hidden").value;
+						   socketio.emit("userout_apply", {kickname:kickname,foundername:foundername,roomname:roomname});
+					}
+					
+					socketio.on("userout_alert",function(data) {
+					   const kickname = data['kickname'];
+					   const foundername = data['foundername'];
+					   const roomname = data['roomname'];
+					   document.getElementById("loginpage").style.display="none";
+					   document.getElementById("lobby").style.display="block";
+					   document.getElementById("private-room").style.display="none";
+					   document.getElementById("founder-privilege").style.display="none";
+					   document.getElementById("founder-only-privilege").style.display="none";
+					   document.getElementById("roomchatlog").innerHTML="";
+					   document.getElementById("privateroom_hidden").innerHTML="";
+					   document.getElementById("roomname_hidden").innerHTML="";
+					   alert("Dear "+kickname+", you have been kick out from room "+roomname+" by "+foundername);
+					   kickoutupdate(kickname,roomname);
+					   roomspaceupdate(roomname);
+					});
+				
+				function roomspaceupdate(roomname){
+							socketio.emit("roomspace_update", {roomname:roomname});
+						}
+							
+				function kickoutupdate(kickname,roomname){
+							socketio.emit("kickout_update", {kickname:kickname,roomname:roomname});
+						}
+						
+				socketio.on("kick_out_update",function(data) {
+						 const roomname = data['roomname'];
+						 const kickname = data['kickname'];
+						 const userlist = data['userlist'];
+						 let usersinroom=[];
+						 for(let i=0; i < userlist.length; i++){
+						 	if(userlist[i].room==roomname){
+						 		let newusersname = userlist[i].nicknames;
+						 		usersinroom.push(newusersname);
+						 	}
+						 }
+					 document.getElementById("usersinroom").innerHTML = "users now in room: "+usersinroom;
+				});
+				
+				function privatemessage(){
+					     const privatemessage = document.getElementById("private-message").value;
+					     const privatename = document.getElementById("private-name").value;
+						 const sendername = document.getElementById("privateroom_hidden").value;
+						 const roomname = document.getElementById("roomname_hidden").value;
+						 if(privatemessage==''){
+						 	alert("private message cannot be null!");
+						 }else if(privatename==''){
+						 	alert("private name cannot be null!");
+						 }else if(privatename==sendername){
+						 	alert("Sorry, you can not send private message to yourself.");
+						 }else{
+							socketio.emit("private_msg_send", {privatemessage:privatemessage,privatename:privatename,sendername:sendername,roomname:roomname}); 
+						 }
+				}
+				
+				socketio.on("privatemsg_to_sender",function(data) {
+						 const roomname = data['roomname'];
+						 const privatemessage = data['privatemessage'];
+						 const privatename = data['privatename'];
+						 const sendername = data['sendername'];
+						 const privatemsgpoint = data['privatemsgpoint'];
+						 if(privatemsgpoint==1){
+						 	alert("user you want to chat does not exist in this room now!");
+						 }else if(privatemsgpoint==0){
+							privatemessagereceive(roomname,privatemessage,privatename,sendername);
+							let text= '<div class="roomchat">'+'private message for '+privatename+' :'+privatemessage+'</div>'
+							document.getElementById("roomchatlog").innerHTML+=text;
+						 }
+				});
+				
+				function privatemessagereceive(roomname,privatemessage,privatename,sendername){
+							socketio.emit("private_msg_receive", {roomname:roomname,privatemessage:privatemessage,privatename:privatename,sendername:sendername});
+						}
+				
+				socketio.on("privatemsg_to_receiver",function(data) {
+						 const roomname = data['roomname'];
+						 const privatemessage = data['privatemessage'];
+						 const privatename = data['privatename'];
+						 const sendername = data['sendername'];
+						 let text= '<div class="roomchat">'+'private message from '+sendername+' :'+privatemessage+'</div>'
+						 document.getElementById("roomchatlog").innerHTML+=text;
+				});
+				
+				function pull(){
+					const pullman = document.getElementById("pull-somebody").value;
+					const roomname = document.getElementById("roomname_hidden").value;
+					const founder = document.getElementById("privateroom_hidden").value;
+					const password = document.getElementById("password_hidden").value;
+					if(pullman==""){
+						alert("name can not be null!");
+					}else if(pullman==founder){
+						alert("you can not invite yourself into your own room.")
+					}else{
+						socketio.emit("pull_request", {roomname:roomname,pullman:pullman,founder:founder,password:password});
+					}
+				}
+				
+				socketio.on("pull_repetition",function(data) {
+						 const pullman = data['pullman'];
+						 alert("Sorry, the user "+pullman+" has already in your room!");
+				});
+				
+				socketio.on("grab_failure",function(data) {
+						 const pullman = data['pullman'];
+						 alert("Sorry, the user you want to invite has already join another room!");
+				});
+				
+				socketio.on("pull_failure",function(data) {
+						 const pullman = data['pullman'];
+						 alert("Sorry, the user you want to invite does not exist!");
+				});
+				
+				socketio.on("ban_reason",function(data) {
+						 const pullman = data['pullman'];
+						 alert("Sorry, the user "+pullman+" you want to invite has been banned from join this room.");
+				});
+				
+				socketio.on("pull_apply",function(data) {
+						 const nickname = data['pullman'];
+						 const founder = data['founder'];
+						 const roomname = data['roomname'];
+						 const password = data['password'];
+						 pullreceive(roomname,nickname,password);
+						 alert(founder+" has invited you to join the chatroom "+roomname);
+				});
+				
+				function pullreceive(roomname,nickname,password){
+					 if(roomname==''){
+						 alert("roomname cannot be null!");
+					 }else{
+						  socketio.emit("information_of_joinroom", {roomname:roomname,nickname:nickname,password:password});
+					 }
+				}
+				
+				function changepassword(){
+					 const newpassword = document.getElementById("change-password").value;
+					 const oldpassword = document.getElementById("password_hidden").value;
+					 const roomname = document.getElementById("roomname_hidden").value;
+					 if(newpassword==oldpassword){
+						 alert("The password is same as the older one!");
+					 }else{
+						  socketio.emit("change_password", {newpassword:newpassword,oldpassword:oldpassword,roomname:roomname});
+					 }
+				}
+				
+				socketio.on("changepwd_judge",function(data) {
+						 const newpassword = data['newpassword'];
+						 document.getElementById("password_hidden").value = newpassword;
+						 alert("To all administrator in the room: The founder have change the password and the new room password is: "+newpassword);
+				});
+				
+				function cancelban(){
+					 const liftname = document.getElementById("lift-somebody").value;
+					 const roomname = document.getElementById("roomname_hidden").value;
+					 const nickname = document.getElementById("privateroom_hidden").value;
+					 if(liftname==""){
+						 alert("The name can not be null!");
+					 }else if(liftname==nickname){
+						 alert("Come on! you can not ban yourself, so how can you lift yourself?");
+					 }else{
+						  socketio.emit("cancel_ban", {liftname:liftname,roomname:roomname,nickname:nickname});
+					 }
+				}
+				
+				socketio.on("cancel_result",function(data) {
+						 const banpoint = data['banpoint'];
+						 const liftname = data['liftname'];
+						 if(banpoint==0){
+							 alert("You haven't ban the user: "+liftname+" before!");
+						 }else if(banpoint==1){
+							 alert("You have cancelled the ban for user "+liftname);
+						 }
+				});
+				
+				function authorize(){
+					 const authorizename = document.getElementById("authorize").value;
+					 const roomname = document.getElementById("roomname_hidden").value;
+					 const foundername = document.getElementById("privateroom_hidden").value;
+					 const password = document.getElementById("password_hidden").value;
+					 if(authorizename==""){
+						 alert("The name can not be null!");
+					 }else if(authorizename==foundername){
+						 alert("Come on! you can not authorize yourself!");
+					 }else{
+						  socketio.emit("authorize_rights", {authorizename:authorizename,roomname:roomname,foundername:foundername,password:password});
+					 }
+				}
+				
+				socketio.on("authorize_apply",function(data) {
+						 const authorizename = data['authorizename'];
+						 const foundername = data['foundername'];
+						 const roomname = data['roomname'];
+						 const password = data['password'];
+						 document.getElementById("password_hidden").value = password;
+						 document.getElementById("founder-privilege").style.display="block";
+						 alert("Hi "+authorizename+",the founder of room "+roomname+" has already give your the rights to ban, invite and kickout others!");
+				});
+				
+				socketio.on("authorize_repetition",function(data) {
+						 const authorizename = data['authorizename'];
+						 alert("Sorry, the user "+authorizename+" has already been authorized!");
+				});
+				
+				socketio.on("authorize_transboundary",function(data) {
+						 const authorizename = data['authorizename'];
+						 alert("Sorry, you can not authorize a user in another room!");
+				});
+				
+				socketio.on("authorize_wrong",function(data) {
+						 const authorizename = data['authorizename'];
+						 alert("Sorry, the user "+authorizename+" is not register or join any room!");
+				});
+				
+	 			document.addEventListener("DOMContentLoaded", function() {
+	 			    document.getElementById("lobby").style.display="none";
+	 				document.getElementById("private-room").style.display="none";
+					document.getElementById("founder-privilege").style.display="none";
+					document.getElementById("founder-only-privilege").style.display="none";
+	 			})
+	 			document.getElementById("login_btn").addEventListener("click", login, false);
+	 			document.getElementById("lobbymsg_btn").addEventListener("click", sendMessageinlobby, false);
+	 			document.getElementById("roommsg_btn").addEventListener("click", sendMessageinroom, false);
+	 			document.getElementById("logout_btn").addEventListener("click", logout, false);
+	 			document.getElementById("leave_btn").addEventListener("click", leave, false);
+	 			document.getElementById("newroom_btn").addEventListener("click", newroom, false);
+	 			document.getElementById("joinroom_btn").addEventListener("click", joinroom, false);
+				document.getElementById("ban_btn").addEventListener("click", ban, false);
+				document.getElementById("kickout_btn").addEventListener("click", kickoutfounder, false);
+				document.getElementById("pull_btn").addEventListener("click", pull, false);
+				document.getElementById("privatemsg_btn").addEventListener("click", privatemessage, false);
+				document.getElementById("changepwd_btn").addEventListener("click", changepassword, false);
+				document.getElementById("cancel_btn").addEventListener("click", cancelban, false);
+				document.getElementById("authorize_btn").addEventListener("click", authorize, false);
+	 </script> 
+   </body>
+</html>
