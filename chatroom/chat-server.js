@@ -63,13 +63,17 @@ io.sockets.on("connection", function(socket){
 	// This callback runs when a new Socket.IO connection is established.
 	socket.on('login_server', function(data) {
 		const nickname = xss(data["nickname"]);
-		console.log("nickname: "+data["nickname"]); 
+		const socket_id = socket.id;
 		if(alluserslist.indexOf(nickname) > -1){
 			userexist=1;
 		}else{
 			userexist=0;
 			alluserslist.push(nickname);
-			allSocket[nickname] = socket.id;
+			let socketinfo =  {
+				nickname:nickname,
+				socket_id: socket_id
+			}
+			allSocket.push(socketinfo);
 		}
 		io.to(socket.id).emit("message_to_login",{nickname:nickname,userexist:userexist,roomlist:roomlist}) 
 	});
@@ -127,13 +131,7 @@ io.sockets.on("connection", function(socket){
 		const roomname = xss(data["roomname"]);
 		const foundername = xss(data["foundername"]);
 		if(foundername==nicknames){
-			for(let i=0;i<userlist.length;i++){
-				if(userlist[i].room==roomname){
-					const room_member_name = userlist[i].nicknames;
-					const id = allSocket[room_member_name];
-					io.to(id).emit('dismiss_room',{roomname:roomname,foundername:foundername})
-				}
-			}
+			io.sockets.in(roomname).emit("leave_judge",{roomname:roomname,foundername:foundername})
 		}else{
 			socket.leave(roomname);
 			for(let i=0; i < userlist.length; i++){
@@ -161,7 +159,7 @@ io.sockets.on("connection", function(socket){
 				break;
 			}
 		}
-		io.sockets.in(roomname).emit("dismiss_judge",{roomname:roomname,foundername:foundername})
+		io.in(roomname).emit("dismiss_judge",{roomname:roomname,foundername:foundername})
 	});
 	
 	socket.on('leave_update', function(data) {
@@ -261,13 +259,20 @@ io.sockets.on("connection", function(socket){
 	socket.on('logout_ask', function(data) {
 		// This callback runs when the server receives a new message from the client.
 		const nickname = xss(data["nickname"]);
-		const id = allSocket[nickname]; 
 		for(let i=0; i < alluserslist.length; i++){
 			if(alluserslist[i]==nickname){
 				alluserslist.splice(i,1);
+				break;
 			}
 		}
-		io.to(id).emit("logout_alert",{nickname:nickname})
+		for(let j=0;j<allSocket.length;j++){
+			if(allSocket[j].nickname==nickname){
+				const id = allSocket[j].socket_id;
+				allSocket.splice(j,1);
+				io.to(id).emit("logout_alert",{nickname:nickname})
+				break;
+			}
+		}
 	});
 	
 	socket.on('kickout_ask', function(data) {
@@ -310,9 +315,13 @@ io.sockets.on("connection", function(socket){
 		const kickname = xss(data["kickname"]);
 		const foundername = xss(data["foundername"]);
 		const roomname = xss(data["roomname"]);
-		const id = allSocket[kickname];
-		console.log(id);
-		io.to(id).emit("userout_alert",{kickname:kickname,foundername:foundername,roomname:roomname})
+		for(let j=0;j<allSocket.length;j++){
+			if(allSocket[j].nickname==kickname){
+				const id = allSocket[j].socket_id;
+				io.to(id).emit("userout_alert",{kickname:kickname,foundername:foundername,roomname:roomname})
+				break;
+			}
+		}
 	});
 	
 	socket.on('roomspace_update', function(data) {
@@ -352,8 +361,13 @@ io.sockets.on("connection", function(socket){
 		const privatename = xss(data["privatename"]);
 		const sendername = xss(data["sendername"]);
 		const roomname = xss(data["roomname"]);
-		const id = allSocket[privatename];
-		io.to(id).emit("privatemsg_to_receiver",{privatemessage:privatemessage,privatename:privatename,sendername:sendername,roomname:roomname})
+		for(let j=0;j<allSocket.length;j++){
+			if(allSocket[j].nickname==privatename){
+				const id = allSocket[j].socket_id;
+				io.to(id).emit("privatemsg_to_receiver",{privatemessage:privatemessage,privatename:privatename,sendername:sendername,roomname:roomname})
+				break;
+			}
+		}
 	});
 	
 	socket.on('pull_request', function(data) {
@@ -394,9 +408,14 @@ io.sockets.on("connection", function(socket){
 		if(pullpoint!=1 && pullpoint!=2 && pullpoint!=3){
 			for(let j=0; j < alluserslist.length; j++){
 				if(alluserslist[j]==pullman){
-					const id = allSocket[pullman];
 					pullpoint=4;
-					io.to(id).emit("pull_apply",{founder:founder,roomname:roomname,pullman:pullman,password:password})
+					for(let m=0;m<allSocket.length;m++){
+						if(allSocket[m].nickname==pullman){
+							const id = allSocket[m].socket_id;
+							io.to(id).emit("pull_apply",{founder:founder,roomname:roomname,pullman:pullman,password:password})
+							break;
+						}
+					}
 				}
 			}
 		}
@@ -419,8 +438,12 @@ io.sockets.on("connection", function(socket){
 			if(userlist[i].room==roomname){
 				if(userlist[i].ban_kick=="yes"){
 					const administratorname = userlist[i].nicknames;
-					const id = allSocket[administratorname];
-					io.to(id).emit("changepwd_judge",{newpassword:newpassword})
+					for(let m=0;m<allSocket.length;m++){
+						if(allSocket[m].nickname==administratorname){
+							const id = allSocket[m].socket_id;
+							io.to(id).emit("changepwd_judge",{newpassword:newpassword})
+						}
+					}
 				}
 			}
 		}
@@ -438,8 +461,12 @@ io.sockets.on("connection", function(socket){
 					if(userlist[i].ban_kick=="no"){
 						authorizepoint=1;
 						userlist[i].ban_kick="yes";
-						const id = allSocket[authorizename];
-						io.to(id).emit("authorize_apply",{foundername:foundername,roomname:roomname,authorizename:authorizename,password:password})
+						for(let m=0;m<allSocket.length;m++){
+							if(allSocket[m].nickname==authorizename){
+								const id = allSocket[m].socket_id;
+								io.to(id).emit("authorize_apply",{foundername:foundername,roomname:roomname,authorizename:authorizename,password:password})
+							}
+						}
 					}
 				}
 			}
@@ -471,5 +498,45 @@ io.sockets.on("connection", function(socket){
 			socket.emit("authorize_wrong",{authorizename:authorizename})
 		}
 	});
+	
+	socket.on('disconnect', function(data) {
+		  let disconnectpoint = 1;
+		  let nickname="";
+		  for(let m=0;m<allSocket.length;m++){
+			  if(allSocket[m].socket_id==socket.id){
+				  nickname = allSocket[m].nickname;
+				  console.log(nickname);
+				  allSocket.splice(m, 1);
+				  break;
+			  }
+		  }
+		  const index = alluserslist.findIndex(function(value, index, arr) {
+		                return value == nickname;
+		  });
+		  alluserslist.splice(index, 1);
+		  for(let i=0; i < userlist.length; i++){
+		  	 if(userlist[i].nicknames==nickname){
+				if(userlist[i].founder=="yes"){
+					const roomname = userlist[i].room;
+					disconnectpoint=0;
+					io.sockets.in(roomname).emit('dismiss_room',{roomname:roomname,foundername:nickname})
+					break;
+				}
+		  	 }	
+		  }
+		  if(disconnectpoint!=0){
+			  for(let i=0; i < userlist.length; i++){
+			  	 if(userlist[i].nicknames==nickname){
+			  		if(userlist[i].founder=="no"){
+			  			const roomname = userlist[i].room;
+			  			userlist.splice(i, 1);
+			  			disconnectpoint=1;
+			  			socket.broadcast.to(roomname).emit("leave_to_update",{roomname:roomname,nickname:nickname,userlist:userlist})
+			  			break;
+			  	    }
+			  	 }	
+			  }
+		  }
+	   });
 });
 
