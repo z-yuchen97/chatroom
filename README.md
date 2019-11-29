@@ -4,7 +4,7 @@
 * Go into the chatroom folder, and then use 'npm install' to automatically handles dependencies.  
 * Make sure you have install socket.io  
 * You  need to open the port 3456 in order to run this application  
-* use the command "node chat-server.js"  
+* use the command `node chat-server.js`
 * Finally, visit the website http://xxxx.com:3456/client.html, and now you can use this chatroom app. Hope you would love it!  
 ***  
 ## Function description  
