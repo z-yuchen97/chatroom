@@ -79,10 +79,18 @@ io.sockets.on("connection", function(socket){
 	});
 	
 	socket.on('roomlist_update', function(data) {
-		const roomupdate = xss(data["roomupdate"]);
-		if(roomupdate=="yes"){
-			io.sockets.emit('roomlist_update_request',{roomlist:roomlist});
+		const roomname = xss(data["roomname"]);
+		for(let i=0;i<roomlist.length;i++){
+			if(roomlist[i]==roomname){
+				roomlist.splice(i,1);
+			}
 		}
+		for(let j=0;j<userlist.length;j++){
+			if(userlist[j].room==roomname){
+				userlist.splice(j,1);
+			}
+		}
+		io.sockets.emit('roomlist_update_request',{roomlist:roomlist});
 	});
 	
 	socket.on('lobby', function(data) {
@@ -131,7 +139,7 @@ io.sockets.on("connection", function(socket){
 		const roomname = xss(data["roomname"]);
 		const foundername = xss(data["foundername"]);
 		if(foundername==nicknames){
-			io.sockets.in(roomname).emit("leave_judge",{roomname:roomname,foundername:foundername})
+			io.sockets.in(roomname).emit("dismiss_judge",{roomname:roomname,foundername:foundername})
 		}else{
 			socket.leave(roomname);
 			for(let i=0; i < userlist.length; i++){

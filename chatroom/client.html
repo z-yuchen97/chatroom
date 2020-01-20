@@ -17,7 +17,6 @@
 	   
 	<div id="lobby">
 	  <div id="lobbytitle"><h3>Welcome to the lobby</h3></div>
-	  <div id="currentuser"></div>
 	  <div id="available-room"></div>
 	  <div id="chatlog"></div>
 	  <div id="sendlobby">
@@ -40,7 +39,7 @@
 	 </div>
 	</div>
 	
-	
+	<div id="dad">
 	<div id="private-room">
 	  <div id="welcome-words"></div>
 	  <div id="usersinroom"></div>
@@ -63,6 +62,7 @@
 	  </div>
 	</div>
 	
+	<div id="son">
 	<div id="founder-privilege">
 		<div id="invite">
 		<input type="text" id="pull-somebody" placeholder="invite sb. into the room"/>
@@ -94,6 +94,8 @@
 		<button id="changepwd_btn">change</button>
 		</div>
 	</div>
+	</div>
+	</div>
 	<script>
 	 
 	 var socketio = io.connect();
@@ -107,8 +109,8 @@
 				}
 	 }
 	 
-	 function roomlistupdate(){
-		 socketio.emit("roomlist_update", {roomupdate:"yes"});
+	 function roomlistupdate(roomname){
+		 socketio.emit("roomlist_update", {roomname:roomname});
 	 }
 	 
 	 socketio.on("roomlist_update_request",function(data) {
@@ -125,11 +127,9 @@
 		 }else if(userexist==0){
 			 alert("Welcome to the lobby: "+nickname+" !");
 			 document.getElementById("loginpage").style.display="none";
-			 document.getElementById("lobby").style.display="block";
-			 document.getElementById("private-room").style.display="none";
-			 document.getElementById("founder-privilege").style.display="none";
-			 document.getElementById("founder-only-privilege").style.display="none";
-			 document.getElementById("currentuser").innerHTML="Your nickname is :"+nickname;
+			 document.getElementById("lobby").style.display="flex";
+			 document.getElementById("dad").style.display="none";
+			 document.getElementById("lobbytitle").innerHTML="Welcome to the lobby "+nickname;
 			 document.getElementById("lobby_hidden").value = nickname;
 			 document.getElementById("available-room").innerHTML = "Available Rooms: "+roomlist;
 		 }
@@ -184,11 +184,12 @@
 						foundername = userlist[i].nicknames;
 					}
 				}
-	 			document.getElementById("private-room").style.display="block";
+				document.getElementById("dad").style.display="flex";
+	 			document.getElementById("private-room").style.display="flex";
 	 			document.getElementById("loginpage").style.display="none";
 	 			document.getElementById("lobby").style.display="none";
-				document.getElementById("founder-privilege").style.display="block";
-				document.getElementById("founder-only-privilege").style.display="block";
+				document.getElementById("founder-privilege").style.display="flex";
+				document.getElementById("founder-only-privilege").style.display="flex";
 	 			document.getElementById("welcome-words").innerHTML="Welcome to the room :"+roomname;
 	 			document.getElementById("privateroom_hidden").value = nickname;
 	 			document.getElementById("roomname_hidden").value = roomname;
@@ -265,13 +266,11 @@
 		           const roomname = data['roomname'];
 		           const foundername = data['foundername'];
 				   document.getElementById("loginpage").style.display="none";
-				   document.getElementById("lobby").style.display="block";
-				   document.getElementById("private-room").style.display="none";
-				   document.getElementById("founder-privilege").style.display="none";
-				   document.getElementById("founder-only-privilege").style.display="none";
+				   document.getElementById("lobby").style.display="flex";
+				   document.getElementById("dad").style.display="none";
 				   document.getElementById("roomchatlog").innerHTML="";
 				   alert("Room founder "+foundername+" has leave and dismiss the room "+roomname);
-				   roomlistupdate();
+				   roomlistupdate(roomname);
 		           roomspaceupdate(roomname);
 		        });
 				
@@ -279,10 +278,8 @@
 	 			   const roomname = data['roomname'];
 				   const nickname = data['nicknames'];
 				   document.getElementById("loginpage").style.display="none";
-				   document.getElementById("lobby").style.display="block";
-				   document.getElementById("private-room").style.display="none";
-				   document.getElementById("founder-privilege").style.display="none";
-				   document.getElementById("founder-only-privilege").style.display="none";
+				   document.getElementById("lobby").style.display="flex";
+				   document.getElementById("dad").style.display="none";
 				   document.getElementById("roomchatlog").innerHTML="";
 				   leaveupdate(roomname,nickname);
 	 			   alert("You are out of room "+roomname);
@@ -335,7 +332,8 @@
 					 		foundername = userlist[i].nicknames;
 					 	}
 					 }
-	 			document.getElementById("private-room").style.display="block";
+				document.getElementById("dad").style.display="flex";
+	 			document.getElementById("private-room").style.display="flex";
 	 			document.getElementById("loginpage").style.display="none";
 	 			document.getElementById("lobby").style.display="none";
 				document.getElementById("founder-privilege").style.display="none";
@@ -384,9 +382,7 @@
 		           const nickname = document.getElementById("lobby_hidden").value;
 	 		       document.getElementById("loginpage").style.display="block";
 	 			   document.getElementById("lobby").style.display="none";
-	 			   document.getElementById("private-room").style.display="none";
-				   document.getElementById("founder-privilege").style.display="none";
-				   document.getElementById("founder-only-privilege").style.display="none";
+				   document.getElementById("dad").style.display="none";
 	 			   document.getElementById("chatlog").innerHTML="";
 				   socketio.emit("logout_ask", {nickname:nickname});
 	 		}
@@ -435,10 +431,8 @@
 					   const foundername = data['foundername'];
 					   const roomname = data['roomname'];
 					   document.getElementById("loginpage").style.display="none";
-					   document.getElementById("lobby").style.display="block";
-					   document.getElementById("private-room").style.display="none";
-					   document.getElementById("founder-privilege").style.display="none";
-					   document.getElementById("founder-only-privilege").style.display="none";
+					   document.getElementById("lobby").style.display="flex";
+					    document.getElementById("dad").style.display="none";
 					   document.getElementById("roomchatlog").innerHTML="";
 					   document.getElementById("privateroom_hidden").innerHTML="";
 					   document.getElementById("roomname_hidden").innerHTML="";
@@ -624,7 +618,7 @@
 						 const roomname = data['roomname'];
 						 const password = data['password'];
 						 document.getElementById("password_hidden").value = password;
-						 document.getElementById("founder-privilege").style.display="block";
+						 document.getElementById("founder-privilege").style.display="flex";
 						 alert("Hi "+authorizename+",the founder of room "+roomname+" has already give your the rights to ban, invite and kickout others!");
 				});
 				
@@ -645,9 +639,7 @@
 				
 	 			document.addEventListener("DOMContentLoaded", function() {
 	 			    document.getElementById("lobby").style.display="none";
-	 				document.getElementById("private-room").style.display="none";
-					document.getElementById("founder-privilege").style.display="none";
-					document.getElementById("founder-only-privilege").style.display="none";
+	 				document.getElementById("dad").style.display="none";
 	 			})
 	 			document.getElementById("login_btn").addEventListener("click", login, false);
 	 			document.getElementById("lobbymsg_btn").addEventListener("click", sendMessageinlobby, false);
